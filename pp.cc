@@ -1,5 +1,5 @@
 
-//clang++  -std=c++11 -O3 -o d -Xpreprocessor -fopenmp -lomp -lzmq pp.cc
+//clang++ -O3 -o d -Xpreprocessor -fopenmp -lomp -lzmq pp.cc
 #include "include/rapidjson/document.h"
 #include "include/rapidjson/writer.h"
 #include "include/rapidjson/stringbuffer.h"
@@ -7,7 +7,7 @@
 #include  "zmq.hpp"
 
 using namespace rapidjson;
-
+using namespace std;
 
  int  main ()
 	{
@@ -22,19 +22,53 @@ using namespace rapidjson;
     StringBuffer buffer;
     Writer<StringBuffer> writer(buffer);
     d.Accept(writer);
-    // Output {"project":"rapidjson","stars":11}
-    std::cout << buffer.GetString() << std::endl;
-    return 0;
+    //Output {"project":"rapidjson","stars":11}
+    cout << buffer.GetString() << std::endl;
 
 	zmq::context_t context(1);
     zmq::socket_t worker(context, ZMQ_DEALER);
     worker.setsockopt(ZMQ_IDENTITY, "B", 1);  
-    worker.connect("tcp://localhost:4444");
-	
-    
-    //worker.send("{\"operacion\":\"registrar\"}",25,ZMQ_SNDMORE);
-    //worker.send("{\"operacion\":\"registrar\"}",25,0);
+    worker.connect("tcp://localhost:4443");
+
+    zmq::pollitem_t items [] = {
+        { static_cast<void*>(worker), 0, ZMQ_POLLIN, 0 },
+    };
+    zmq::message_t message;
+
+    worker.send("{\"op\":\"reg\"}",12,ZMQ_SNDMORE);
+    worker.send("{\"op\":\"reg\"}",12,0);
 
     
+    //worker.recv(&message,12);
+    //cout<< message;
+
+
+    zmq::message_t reply;
+	//worker.recv(&reply,12);
+	//string rpl = string(static_cast<char*>(reply.data()), reply.size());
+	//cout << rpl << endl;
+
+    
+    while(1){
+    	zmq::message_t message;
+    	int more;
+    	zmq::poll (&items[0], 1, -1);
+
+    	//cout<<"jsd"<<endl;
+        if (items[0].revents & ZMQ_POLLIN) {
+            cout<<"h1"<<endl;
+            bool mensaje = worker.recv(&message);
+            size_t more_size = sizeof (more);
+            worker.getsockopt(ZMQ_RCVMORE, &more, &more_size);
+        	cout<<message<<endl;
+        	cout<<"h2"<<endl;
+            //worker.recv(&message);
+            //  Process task            
+        }
+
+
+       
+    }
+   	return 0;
 }
    
