@@ -57,13 +57,21 @@ def main():
 		
 		elif sys.stdin.fileno() in socks:
 				os.system('clear')
-				print("?")
+				print("op dataset ndatos nvariables?")
 				command = input()
-				op, dataset, nvariables = command.split(' ', 2)
+				op, dataset, ndatos, nvariables = command.split(' ', 3)
 				if(op=='k'):
 					msg = json.dumps(jsonworkers)
 					print(listaworkers[0])
 					for x in range(len(listaworkers)):
+						y = len(listaworkers)
+						i = 1
+						if (x == 0):
+							jsonworkers = {'op':'sendworker','dataset':dataset,'inicial':i,'final':int(i*int(ndatos)/y),'nvariables':int(nvariables),'distancias':[]}
+						else:
+							jsonworkers = {'op':'sendworker','dataset':dataset,'inicial':int(i*int(ndatos)/y),'final':int((x+1)*int(ndatos)/y),'nvariables':int(nvariables),'distancias':[]}
+						msg = json.dumps(jsonworkers)
+						print(x)
 						socket.send_multipart([listaworkers[x].encode("utf8"),msg.encode("utf8")])
 		
 

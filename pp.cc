@@ -226,8 +226,11 @@ DataFrame readData(string File,int nVariables ){
     			Value& dist = doc["distancias"];
     			Value& initial = doc["inicial"];
     			Value& final = doc["final"];
-    			string dataset= "iris.data";
-				int numeroVariables = 4;
+    			Value& dat = doc["dataset"];
+    			Value& nvar = doc["nvariables"];
+    			cout << dat.GetString()<<endl;
+    			string dataset= dat.GetString();
+				int numeroVariables = nvar.GetInt();
 				int numeroIT = 1000;
 				double epsilon = 0.0;
 				DataFrame data = readData(dataset,numeroVariables);
