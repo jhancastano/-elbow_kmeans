@@ -3,6 +3,12 @@ import sys
 import json
 import os
 
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+
 
 def workers(identidad,lista):
 	ident =identidad.decode('utf8')
@@ -50,7 +56,17 @@ def main():
 					msg = json.dumps(mensaje)
 					socket.send_multipart([sender,msg.encode("utf8")])
 				elif  operacion == 'finishwork':
-					print(msg)
+					fig = plt.figure(figsize=(5, 5))
+					yi = []
+					for k in range (mensaje_json['inicial'],mensaje_json['final']+1): 
+						yi.append(k) 
+					print(yi)
+					plt.scatter(mensaje_json['distancias'], yi, color='k')
+					plt.title(u'Los kodo')
+					plt.show()
+
+
+					#print(msg)
 				else:
 					print(msg)
 					#socket.send_multipart([sender, msg])
