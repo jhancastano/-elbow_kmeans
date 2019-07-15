@@ -1,11 +1,18 @@
 
 //clang++ -O3 -o d -Xpreprocessor -fopenmp -lomp -lzmq pp.cc
-#include <string>
+
 #include "include/rapidjson/document.h"
 #include "include/rapidjson/writer.h"
 #include "include/rapidjson/stringbuffer.h"
 #include <iostream>
 #include  "zmq.hpp"
+
+#include <string>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <random>
+#include <omp.h>
 
 using namespace rapidjson;
 using namespace std;
@@ -214,10 +221,36 @@ DataFrame readData(string File,int nVariables ){
     			worker.send(buffer.GetString(),sizeM1,0);
 
     		}
+    		if(s1=="sendworker"){
+
+    			Value& dist = doc["distancias"];
+
+    			string dataset= "arrhythmia.dat";
+				int numeroVariables = 279;
+				int numeroCluster = 10;
+				int numeroIT = 10;
+				double epsilon = 0.1;
+				DataFrame data = readData(dataset,numeroVariables);
+				DataFrame means;
+				double c;
+				vector<size_t> a;	
+					for(int i=0;i<10;i++){
+						cout << i;
+						c = k_means(data,numeroCluster,numeroIT,epsilon,0,means);		
+						cout << c <<endl;
+						dist.PushBack(Value().SetDouble(c), doc.GetAllocator());
+						}
+				StringBuffer buffer;
+    			Writer<StringBuffer> writer(buffer);
+    			doc.Accept(writer);
+
+    			cout<<buffer.GetString()<<endl;
+    			
+    		}
     			
     		else
-    			cout<<"depurando";
-        	cout<<"limp"<<endl;
+    			cout<<json1<<endl;
+        	
         }
         
         
