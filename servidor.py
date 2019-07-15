@@ -12,8 +12,7 @@ def workers(identidad,lista):
 		lista.append(ident)
 
 
-def kmeans():
-	pass
+
 
 def main():
 	listaworkers = []
@@ -25,7 +24,7 @@ def main():
 	poller.register(sys.stdin, zmq.POLLIN)
 	poller.register(socket, zmq.POLLIN)
 
-	jsonworkers = {'op':'sendworker','dataset':'','inicial':0,'final':0,'nvariables':0,'distancias':[]}
+	jsonworkers = {'op':'sendworker','dataset':'','inicial':1,'final':149,'nvariables':0,'distancias':[]}
 
 
 	while True:
@@ -50,6 +49,8 @@ def main():
 					mensaje = {'op':'dep'}
 					msg = json.dumps(mensaje)
 					socket.send_multipart([sender,msg.encode("utf8")])
+				elif  operacion == 'finishwork':
+					print(msg)
 				else:
 					print(msg)
 					#socket.send_multipart([sender, msg])
@@ -62,7 +63,8 @@ def main():
 				if(op=='k'):
 					msg = json.dumps(jsonworkers)
 					print(listaworkers[0])
-					socket.send_multipart([listaworkers[0].encode("utf8"),msg.encode("utf8")])
+					for x in range(len(listaworkers)):
+						socket.send_multipart([listaworkers[x].encode("utf8"),msg.encode("utf8")])
 		
 
 if __name__ == '__main__':

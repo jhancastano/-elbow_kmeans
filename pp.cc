@@ -33,11 +33,11 @@ inline double squared_12_distance(const Point& first,const Point& second){
 }
 
 inline double distanciakmeans(DataFrame means,DataFrame data,vector<size_t> v){
-	double distance = 0;
-	for(int i=0;i<v.size();i++){
-		distance =+ squared_12_distance(data[i],means[v[i]]);
+	double distance = 0.0;
+	for(int i=0;i<v.size();++i){
+		distance += sqrt(squared_12_distance(data[i],means[v[i]]));
 	}
-	return distance;
+	return distance/v.size();
 }
 
 
@@ -224,28 +224,30 @@ DataFrame readData(string File,int nVariables ){
     		if(s1=="sendworker"){
 
     			Value& dist = doc["distancias"];
-
-    			string dataset= "arrhythmia.dat";
-				int numeroVariables = 279;
-				int numeroCluster = 10;
-				int numeroIT = 10;
-				double epsilon = 0.1;
+    			Value& initial = doc["inicial"];
+    			Value& final = doc["final"];
+    			string dataset= "iris.data";
+				int numeroVariables = 4;
+				int numeroIT = 1000;
+				double epsilon = 0.0;
 				DataFrame data = readData(dataset,numeroVariables);
 				DataFrame means;
 				double c;
 				vector<size_t> a;	
-					for(int i=0;i<10;i++){
+					for(int i=initial.GetInt();i<=final.GetInt();i++){
 						cout << i;
-						c = k_means(data,numeroCluster,numeroIT,epsilon,0,means);		
+						c = k_means(data,i,numeroIT,epsilon,0,means);		
 						cout << c <<endl;
 						dist.PushBack(Value().SetDouble(c), doc.GetAllocator());
 						}
+
+				s1.SetString("finishwork");
 				StringBuffer buffer;
     			Writer<StringBuffer> writer(buffer);
     			doc.Accept(writer);
-
     			cout<<buffer.GetString()<<endl;
-    			
+    			int sizeM1 = strlen(buffer.GetString());
+    			worker.send(buffer.GetString(),sizeM1,0);
     		}
     			
     		else
