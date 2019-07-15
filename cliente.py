@@ -18,13 +18,13 @@ def main():# 1arg=nodoID, 2ipnodo, 3puerto nodo, 4arg=idsucesor 5arg=puerto suce
 
 	mensaje = {'op':'reg'}
 	msg = json.dumps(mensaje)
-	sock.send_multipart([b'a1', msg.encode("utf8")])
+	sock.send_multipart([msg.encode("utf8")])
 	while(True) :
 		socks = dict(poller.poll())		#router--------------------------------
 		if sock in socks: #envia peticiones
 			#----------enganchar server------------------------------------
 			print('hay un socket')
-			sender, msg = sock.recv_multipart()
+			msg = sock.recv_multipart()
 			#mensaje_json = json.loads(msg)
 			print(msg)
 		elif sys.stdin.fileno() in socks:

@@ -32,17 +32,23 @@ def main():
 		socks = dict(poller.poll())
 		if socket in socks:
 
-				sender, destino , msg = socket.recv_multipart()
+				sender, msg = socket.recv_multipart()
 				print(msg)
 				mensaje_json = json.loads(msg)
 				operacion = mensaje_json['op']
 				if operacion=='reg':
-					print(destino)
+					print(sender)
 					workers(sender,listaworkers)
 					print(listaworkers)
-					socket.send_multipart([sender, sender, msg])
+					socket.send_multipart([sender,msg])
+				elif operacion=='dep':
+					print("depurando")
+					mensaje = {'op':'dep'}
+					msg = json.dumps(mensaje)
+					socket.send_multipart([sender,msg.encode("utf8")])
 				else:
-					socket.send_multipart([destino, sender, msg])
+					print(msg)
+					#socket.send_multipart([sender, msg])
 		
 		elif sys.stdin.fileno() in socks:
 				os.system('clear')

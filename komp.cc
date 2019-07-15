@@ -1,5 +1,9 @@
-//#include "timer.hh"
-//#include <tuple>
+//clang++ -O3 -o d -Xpreprocessor -fopenmp -lomp -lzmq pp.cc
+#include "include/rapidjson/document.h"
+#include "include/rapidjson/writer.h"
+#include "include/rapidjson/stringbuffer.h"
+#include  "zmq.hpp"
+
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -26,10 +30,16 @@ inline double squared_12_distance(const Point& first,const Point& second){
 	return d;
 }
 
+inline double distanciakmeans(DataFrame means,DataFrame data,vector<size_t> v){
+	double distance = 0;
+	for(int i=0;i<v.size();i++){
+		distance =+ squared_12_distance(data[i],means[v[i]]);
+	}
+	return distance;
+}
 
 
-
-DataFrame k_means( const DataFrame& data, size_t k, size_t number_of_iterations, double ep,const int empty, const DataFrame Imeans){
+double k_means( const DataFrame& data, size_t k, size_t number_of_iterations, double ep,const int empty, const DataFrame Imeans){
 	size_t dimensions = data[0].size();
 	static random_device seed;
 	static mt19937 random_number_generator(seed());
@@ -39,6 +49,7 @@ DataFrame k_means( const DataFrame& data, size_t k, size_t number_of_iterations,
 	double distanciaepsilon;
 	int contador = 0;
 	size_t epsilon = numeric_limits<size_t>::max();
+	double distancemeans;
 //------------------asignacion de primeros cluster--------------------------	
 	if(empty == 0){
 	for (Point& cluster : means){ // cluster -> means
@@ -49,8 +60,10 @@ DataFrame k_means( const DataFrame& data, size_t k, size_t number_of_iterations,
 		means = Imeans;
 	vector<size_t> assignments(data.size());
 	
+	size_t iteration = 0;
 //--------------------------ciclo de kmeans-------------------------------
-	for(size_t iteration = 0; iteration < number_of_iterations; ++iteration){
+	while((iteration < number_of_iterations)&&(contador != k)){
+	
 		// find assignements ---- 
 		#pragma omp parallel for //num_threads(8)
 		for (size_t point = 0; point < data.size() ; ++point){
@@ -65,11 +78,12 @@ DataFrame k_means( const DataFrame& data, size_t k, size_t number_of_iterations,
 				}
 			assignments[point] = best_cluster;
 			}
+
+
 		DataFrame new_means(k,vector<double>(dimensions,0.0));// means nuevo
 		DataFrame new_meansaux(k,vector<double>(dimensions,0.0));//means actual
 		vector<size_t> counts(k, 0);
 	//----------------------- asigna cluster a los puntos----------------
-		//#pragma omp parallel for
 		for (size_t point = 0; point < data.size(); ++point){
 		    const size_t cluster = assignments[point];
 		    for(size_t d = 0; d < dimensions; d++){
@@ -78,7 +92,7 @@ DataFrame k_means( const DataFrame& data, size_t k, size_t number_of_iterations,
 			counts[cluster] += 1;
 			}
 	//------------------- divide sumas por saltos para obtener centroides
-		//#pragma omp parallel for
+		contador = 0;
 		for (size_t cluster = 0; cluster < k; ++cluster){
 			const size_t count = max<size_t>(1, counts[cluster]);
 			for(size_t d = 0; d < dimensions;d++){
@@ -88,38 +102,20 @@ DataFrame k_means( const DataFrame& data, size_t k, size_t number_of_iterations,
 			distanciaepsilon = squared_12_distance(new_meansaux[cluster],means[cluster]);
 			if(distanciaepsilon < ep){
 				contador++;
-				}
-			if(distanciaepsilon > ep){
-				contador--;
 				}	
 			}
+		++iteration;
 		//-------------final de centroides nuevos---------------
 	//-------------retorno si los centroides no cambian o el cambio es menor a epsilon
-		if(contador == k ){
-			return means;
-		}
-		contador = 0;
+		
 	//--------------fin retorno---------------------
 
 	}
-//----------------termina iteaciones--------------------------
-	return means;
-}
+	cout<<"iteracion#:"<<iteration<<endl;
+	distancemeans = distanciakmeans(means,data,assignments);
 
-void writen(DataFrame data,string nombre){
-	ofstream archivo;
-	archivo.open(nombre,ios::out);
-	if(archivo.fail()){
-		cout<<"error"<<endl;
-		exit(1);
-	}
-	for(int i=0;i< data.size();++i){
-		for(int j=0; j<data[i].size();++j){
-			archivo << data[i][j]<<' ';
-			}
-		archivo<<endl;
-	}
-	archivo.close();
+//----------------termina iteaciones--------------------------
+	return distancemeans;
 }
 
 
@@ -142,27 +138,6 @@ DataFrame readData(string File,int nVariables ){
 }
 
 
-void imprimirkameans(vector<size_t> m,DataFrame data,int k){
-	vector<int> v(k);
-	for(int i = 0; i < data.size(); i++) {
-  		v[m[i]]++;
-  		}
-  	for(int x = 0; x<v.size(); x++){
-  		cout << "k_means" << x << " -> "<<v[x] <<endl;
-  		}
-}
-
-void printpointmeans(DataFrame means,int nVariables){
-	for(int i=0;i<means.size();i++ ){
-		cout<<'(';
-		for(int j=0;j<nVariables;j++)
-			cout << means[i][j]<<',';
-		cout <<')'<<endl;
-	}
-}
-
-
-
 
 
 
@@ -174,44 +149,22 @@ int main(){
 	int numeroIT;
 	double epsilon;
 
-	//cout << "ingrese nombre dataset"<<endl;
-	//cin >>dataset;
-	//cout << "ingrese numero variables dataset"<<endl;
-	//cin >> numeroVariables;
-	//cout << "ingrese numero de cluster o k"<<endl;
-	//cin >> numeroCluster;
-	//cout << "ingrese numero de iteraciones"<<endl;
-	//cin >> numeroIT;
-	//cout << "ingrese epsilon de convergencia ej(0.1)"<<endl;
-	//cin >> epsilon;
 	dataset= "arrhythmia.dat";
 	numeroVariables = 279;
-	numeroCluster = 40;
-	numeroIT = 1000;
-	epsilon = 0.001;
+	numeroCluster = 10;
+	numeroIT = 1000000;
+	epsilon = 0.1;
 
 	DataFrame data = readData(dataset,numeroVariables);
-	DataFrame means = readData("arrhythmiaMeans",numeroVariables);
-	DataFrame c;
+	DataFrame means;
+	double c;
 	vector<size_t> a;
 	
-		//ofstream archivo;
-		//archivo.open("tiemposkompOP.csv",ios::out);
-		//if(archivo.fail()){
-		//	cout<<"error"<<endl;
-		//	exit(1);
-		//}
 		for(int i=0;i<10;i++){
-			//ScopedTimer t;
 			c = k_means(data,numeroCluster,numeroIT,epsilon,0,means);
-			//archivo<<t.elapsed()<<endl;
-			//cout <<  " tiempo : " << t.elapsed()<< "ms" << endl;
-		//printpointmeans(c,numeroVariables);
-		//imprimirkameans(a,data,numeroCluster);
+			cout<<c<<endl;
 		}
-	//tie(c,a) = kmeansOP(data,numeroCluster,numeroIT,epsilon,0,c,60);
-	//printpointmeans(c,numeroVariables);
-	//imprimirkameans(a,data,numeroCluster);
+
 	
 	return 0;
 
