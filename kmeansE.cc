@@ -1,10 +1,13 @@
 //clang++ -O3 -o d -Xpreprocessor -fopenmp -lomp -lzmq pp.cc
+//clang++ -std=c++11 -O3 -o d -Xpreprocessor -fopenmp -lomp -lzmqpp -lzmq kmeansE.cc
+
+
 
 #include "include/rapidjson/document.h"
 #include "include/rapidjson/writer.h"
 #include "include/rapidjson/stringbuffer.h"
 #include <iostream>
-#include  "zmq.hpp"
+#include  <zmqpp/zmqpp.hpp>
 
 #include <string>
 #include <fstream>
@@ -14,6 +17,7 @@
 #include <omp.h>
 
 using namespace rapidjson;
+using namespace zmqpp;
 using namespace std;
 
 using Point = vector<double>;
@@ -137,22 +141,6 @@ DataFrame readData(string File,int nVariables ){
 		cout << data.size() << endl;
 		return data;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
  int  main ()
 	{
 	// 1. Parse a JSON string into DOM.
@@ -170,96 +158,95 @@ DataFrame readData(string File,int nVariables ){
     //Output {"project":"rapidjson","stars":11}
     //cout << buffer.GetString() << std::endl;
 
-	zmq::context_t context(1);
-    zmq::socket_t worker(context, ZMQ_DEALER);
-    worker.setsockopt(ZMQ_IDENTITY, "B", 1);  
-    worker.connect("tcp://localhost:4443");
-
-    zmq::pollitem_t items [] = {
-        { static_cast<void*>(worker), 0, ZMQ_POLLIN, 0 },
-    };
-    zmq::message_t message;
-
-
-    //cout <<strlen(json)<<endl;
-    //worker.send(json,12,ZMQ_SNDMORE);
-    int sizeM = strlen(json);
-
-    worker.send(json,sizeM,0);
+    context ctx;
+    socket sok(ctx,socket_type::dealer);
+    sok.set(socket_option::identity,"b221");
+    //sok.identity("hol"); 
+    sok.connect("tcp://localhost:4443");
 
     
- 
+    poller poll;
+    poll.add(sok,ZMQ_POLLIN);
+    //cout<< sok.get_identity();
+
+    message mensaje;
+
+
+ //    //cout <<strlen(json)<<endl;
+ //    //worker.send(json,12,ZMQ_SNDMORE);
+ //    int sizeM = strlen(json);
+     	mensaje << json;
+ 		sok.send(mensaje);
+ 		//cout << mensaje;
     
-    while(1){
-    	zmq::message_t message;
+ while(1){
+     	message response;
    		int more;
-    	zmq::poll (&items[0], 1, -1);
-        if (items[0].revents & ZMQ_POLLIN) {
-            cout << "h1"<<endl;
-            bool mensaje = worker.recv(&message);
-            size_t more_size = sizeof (more);
-            //worker.getsockopt(ZMQ_RCVMORE, &more, &more_size);	                           
-        	
-        	
-       		const char* json1 = (char*)message.data();
-
-        	Document doc;
-    		doc.Parse(json1);
-    		Value& s1 = doc["op"];
-    		//cout<<s1.GetString()<<endl;
+  		//poll.has(sok);
+        if (poll.has(sok)) {
+             cout << "h1"<<endl;
+             sok.receive(response);
+             size_t more_size = sizeof (more);
+             //worker.getsockopt(ZMQ_RCVMORE, &more, &more_size);	                           
+        	const char* json1;
+        	response >> json1;
+         	Document doc;
+     		doc.Parse(json1);
+     		Value& s1 = doc["op"];
+     		//cout<<s1.GetString()<<endl;
         
-    		if(s1=="reg"){
-    			s1.SetString("dep");
-    			StringBuffer buffer;
-    			Writer<StringBuffer> writer(buffer);
-    			doc.Accept(writer);
+     		if(s1=="reg"){
+     			s1.SetString("dep");
+     			StringBuffer buffer;
+     			Writer<StringBuffer> writer(buffer);
+     			doc.Accept(writer);
+     			cout<<buffer.GetString()<<endl;
+    			mensaje << buffer.GetString();
+     			sok.send(mensaje);
 
-    			cout<<buffer.GetString()<<endl;
+     		}
+     		if(s1=="sendworker"){
+
+     			Value& dist = doc["distancias"];
+     			Value& initial = doc["inicial"];
+     			Value& final = doc["final"];
+     			Value& dat = doc["dataset"];
+     			Value& nvar = doc["nvariables"];
+     			cout << dat.GetString()<<endl;
+     			string dataset= dat.GetString();
+	 			int numeroVariables = nvar.GetInt();
+	 			int numeroIT = 1000;
+	 			double epsilon = 0.0;
+	 			DataFrame data = readData(dataset,numeroVariables);
+	 			DataFrame means;
+	 			double c;
+	 			vector<size_t> a;	
+	 				for(int i=initial.GetInt();i<=final.GetInt();i++){
+	 					cout << i;
+	 					c = k_means(data,i,numeroIT,epsilon,0,means);		
+	 					cout << c <<endl;
+	 					dist.PushBack(Value().SetDouble(c), doc.GetAllocator());
+	 					}
+
+	 			s1.SetString("finishwork");
+	 			StringBuffer buffer;
+     			Writer<StringBuffer> writer(buffer);
+     			doc.Accept(writer);
+     			cout<<buffer.GetString()<<endl;
+     			mensaje <<buffer.GetString();
+     			sok.send(mensaje);
+     		}
     			
-    			int sizeM1 = strlen(buffer.GetString());
-    			worker.send(buffer.GetString(),sizeM1,0);
-
-    		}
-    		if(s1=="sendworker"){
-
-    			Value& dist = doc["distancias"];
-    			Value& initial = doc["inicial"];
-    			Value& final = doc["final"];
-    			Value& dat = doc["dataset"];
-    			Value& nvar = doc["nvariables"];
-    			cout << dat.GetString()<<endl;
-    			string dataset= dat.GetString();
-				int numeroVariables = nvar.GetInt();
-				int numeroIT = 1000;
-				double epsilon = 0.0;
-				DataFrame data = readData(dataset,numeroVariables);
-				DataFrame means;
-				double c;
-				vector<size_t> a;	
-					for(int i=initial.GetInt();i<=final.GetInt();i++){
-						cout << i;
-						c = k_means(data,i,numeroIT,epsilon,0,means);		
-						cout << c <<endl;
-						dist.PushBack(Value().SetDouble(c), doc.GetAllocator());
-						}
-
-				s1.SetString("finishwork");
-				StringBuffer buffer;
-    			Writer<StringBuffer> writer(buffer);
-    			doc.Accept(writer);
-    			cout<<buffer.GetString()<<endl;
-    			int sizeM1 = strlen(buffer.GetString());
-    			worker.send(buffer.GetString(),sizeM1,0);
-    		}
-    			
-    		else
-    			cout<<json1<<endl;
+     		else
+     			cout<<json1<<endl;
         	
-        }
+         }
         
         
 
 
-    }
+     }
+    
    	return 0;
 }
+   
