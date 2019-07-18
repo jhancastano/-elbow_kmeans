@@ -9,6 +9,38 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as lines
 
 
+def distancias(p1,p2,v):
+	listaDist = []
+	x0 = p1[0]
+	y0 = p1[1]
+	x1 = p2[0]
+	y1 = p2[1]
+	print(len(v))
+	for i in range(0,len(v)):
+		x = v[i][0]
+		y = v[i][1]
+		d =abs(((y1-y0)*x-(x1-x0)*y+x1*y0-y1*x0))
+		n = pow((pow((y1-y0),2)+pow((x1-x0),2)),0.5)	
+		distancia = d/n
+		listaDist.append(distancia)
+	return listaDist
+
+def dsinprimervalor(p1,p2,v):
+	listaDist = []
+	x0 = p1[0]
+	y0 = p1[1]
+	x1 = p2[0]
+	y1 = p2[1]
+	print(len(v))
+	for i in range(1,len(v)):
+		x = v[i][0]
+		y = v[i][1]
+		d =abs(((y1-y0)*x-(x1-x0)*y+x1*y0-y1*x0))
+		n = pow((pow((y1-y0),2)+pow((x1-x0),2)),0.5)	
+		distancia = d/n
+		listaDist.append(distancia)
+	return listaDist
+
 
 
 def workers(identidad,lista):
@@ -65,7 +97,7 @@ def main():
 		if socket in socks:
 
 				sender, msg = socket.recv_multipart()
-				print(msg)
+				#print(msg)
 				mensaje_json = json.loads(msg)
 				operacion = mensaje_json['op']
 				if operacion=='reg':
@@ -93,8 +125,19 @@ def main():
 						plt.scatter(listXorY(l1,0),listXorY(l1,1),color='k')
 						#linea = lines.Line2D(l1[1],l1[len(l1)-1],transform=fig.transFigure, figure=fig)
 						#fig.lines.extend([linea])
-						plt.plot([l1[1][0],l1[len(l1)-1][0]],[l1[1][1],l1[len(l1)-1][1]],color='b')
-						print(l1[1],l1[len(l1)-1])
+						plt.plot([l1[0][0],l1[len(l1)-1][0]],[l1[0][1],l1[len(l1)-1][1]],color='b')
+						#print(l1[1],l1[len(l1)-1])
+						#puntosDistancias = dsinprimervalor(l1[1],l1[len(l1)-1],l1)
+						puntosDistancias = distancias(l1[0],l1[len(l1)-1],l1)
+
+						k = puntosDistancias.index(max(puntosDistancias))
+
+						plt.scatter(l1[k][0],l1[k][1],color='r')
+						#print(puntosDistancias)
+
+
+						print("el numero k aproximado es :" + str(k))
+
 						plt.title(u'Los kodo')
 
 						plt.show()
@@ -107,7 +150,8 @@ def main():
 
 					#print(msg)
 				else:
-					print(msg)
+					pass
+					#print(msg)
 					#socket.send_multipart([sender, msg])
 		
 		elif sys.stdin.fileno() in socks:
