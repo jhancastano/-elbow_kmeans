@@ -44,7 +44,7 @@ inline double distanciakmeans(DataFrame means,DataFrame data,vector<size_t> v){
 }
 
 
-double k_means( const DataFrame& data, size_t k, size_t number_of_iterations, double ep,const int empty, const DataFrame Imeans){
+pair<DataFrame,vector<size_t>> k_means( const DataFrame& data, size_t k, size_t number_of_iterations, double ep,const int empty, const DataFrame Imeans){
 	size_t dimensions = data[0].size();
 	static random_device seed;
 	static mt19937 random_number_generator(seed());
@@ -54,7 +54,6 @@ double k_means( const DataFrame& data, size_t k, size_t number_of_iterations, do
 	double distanciaepsilon;
 	int contador = 0;
 	size_t epsilon = numeric_limits<size_t>::max();
-	double distancemeans;
 //------------------asignacion de primeros cluster--------------------------	
 	if(empty == 0){
 	for (Point& cluster : means){ // cluster -> means
@@ -65,12 +64,11 @@ double k_means( const DataFrame& data, size_t k, size_t number_of_iterations, do
 		means = Imeans;
 	vector<size_t> assignments(data.size());
 	
-	size_t iteration = 0;
 //--------------------------ciclo de kmeans-------------------------------
-	while((iteration < number_of_iterations)&&(contador != k)){
-	
+	size_t iteration = 0;
+	while( (iteration<number_of_iterations) && (contador != k)){
 		// find assignements ---- 
-		#pragma omp parallel for //num_threads(8)
+		#pragma omp parallel for num_threads(16)
 		for (size_t point = 0; point < data.size() ; ++point){
 			double best_distance = numeric_limits<double>::max();// variable mejor distacia, inicializada con la maxima
 			size_t best_cluster = 0; // variable mejor cluster, inicializada con 0
@@ -83,8 +81,6 @@ double k_means( const DataFrame& data, size_t k, size_t number_of_iterations, do
 				}
 			assignments[point] = best_cluster;
 			}
-
-
 		DataFrame new_means(k,vector<double>(dimensions,0.0));// means nuevo
 		DataFrame new_meansaux(k,vector<double>(dimensions,0.0));//means actual
 		vector<size_t> counts(k, 0);
@@ -109,18 +105,37 @@ double k_means( const DataFrame& data, size_t k, size_t number_of_iterations, do
 				contador++;
 				}	
 			}
-		++iteration;
 		//-------------final de centroides nuevos---------------
-	//-------------retorno si los centroides no cambian o el cambio es menor a epsilon
 		
-	//--------------fin retorno---------------------
-
+		
+		++iteration;
 	}
-	cout<<"iteracion#:"<<iteration<<endl;
-	distancemeans = distanciakmeans(means,data,assignments);
-
 //----------------termina iteaciones--------------------------
-	return distancemeans;
+	return {means, assignments};
+}
+
+pair<DataFrame,vector<size_t>> kmeansOP( const DataFrame& data, size_t k, size_t number_of_iterations, double ep,const int empty, const DataFrame Imeans,int porcentaje){
+	int dimensions = data[0].size();
+	int DataAUX = data.size()*porcentaje/100;
+	static random_device seed;
+	static mt19937 random_number_generator(seed());
+	uniform_int_distribution<size_t> indices(0,data.size()-1);/// change		  
+	DataFrame datos(DataAUX,vector<double>(dimensions,0.0));
+
+	for(int i=0;i<DataAUX;i++){
+		size_t j = indices(random_number_generator);
+		datos[i] = data[j];
+	}
+	DataFrame c;
+	vector<size_t> a;
+	tie(c,a) = k_means(datos,k,number_of_iterations,ep,0,datos);
+	//imprimirkameans(a,data,numeroCluster)
+	//printpointmeans(c,dimensions);
+	//printpointmeans(c,2);
+	//writen(c,"arrhythmiaMeans");
+	tie(c,a) = k_means(data,k,number_of_iterations,ep,1,c);
+	return{c,a};
+
 }
 
 
@@ -143,6 +158,9 @@ DataFrame readData(string File,int nVariables ){
 }
  int  main ()
 	{
+	string id;
+	cout<<"ingrese id"<<endl;
+	cin>>id;
 	// 1. Parse a JSON string into DOM.
     const char* json = "{\"op\":\"reg\"}";
     Document d;
@@ -160,7 +178,7 @@ DataFrame readData(string File,int nVariables ){
 
     context ctx;
     socket sok(ctx,socket_type::dealer);
-    sok.set(socket_option::identity,"b221");
+    sok.set(socket_option::identity,id);
     //sok.identity("hol"); 
     sok.connect("tcp://localhost:4443");
 
@@ -207,7 +225,7 @@ DataFrame readData(string File,int nVariables ){
      		}
      		if(s1=="sendworker"){
 
-     			Value& dist = doc["distancias"];
+     			Value& distan = doc["distancias"];
      			Value& initial = doc["inicial"];
      			Value& final = doc["final"];
      			Value& dat = doc["dataset"];
@@ -216,16 +234,22 @@ DataFrame readData(string File,int nVariables ){
      			string dataset= dat.GetString();
 	 			int numeroVariables = nvar.GetInt();
 	 			int numeroIT = 1000;
-	 			double epsilon = 0.0;
+	 			double epsilon = 0.01;
 	 			DataFrame data = readData(dataset,numeroVariables);
 	 			DataFrame means;
-	 			double c;
+	 			double dis;
+	 			DataFrame c;
 	 			vector<size_t> a;	
 	 				for(int i=initial.GetInt();i<=final.GetInt();i++){
 	 					cout << i;
-	 					c = k_means(data,i,numeroIT,epsilon,0,means);		
-	 					cout << c <<endl;
-	 					dist.PushBack(Value().SetDouble(c), doc.GetAllocator());
+	 					tie(c,a) = kmeansOP(data,i,numeroIT,epsilon,0,means,30);
+	 					//c = k_means(data,i,numeroIT,epsilon,0,means);		
+	 					dis = distanciakmeans(c,data,a);
+	 					double punto[2]= {(double)i,dis};
+						
+	 					cout << dis <<endl;
+	 					distan.PushBack(Value().SetDouble(dis), doc.GetAllocator());
+	 					//distan.PushBack(GenericValue().SetArray(punto), doc.GetAllocator());
 	 					}
 
 	 			s1.SetString("finishwork");

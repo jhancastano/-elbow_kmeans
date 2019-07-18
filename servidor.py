@@ -6,6 +6,7 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.lines as lines
 
 
 
@@ -17,8 +18,24 @@ def workers(identidad,lista):
 	else:
 		lista.append(ident)
 
+def ordenar(listax,listay):
+	diccionario = {}
+	
+	for i in range(len(listax)):
+		diccionario.update({listax[i]:[listax[i],listay[i]]})
+	return diccionario
 
+def listpoint(diccionario):
+	listaordenada = []
+	for x in range(len(diccionario)):
+		listaordenada.append(diccionario[x+1])
+	return listaordenada
 
+def listXorY(listpoint,entero):
+	listaux = []
+	for i in range(len(listpoint)):
+		listaux.append(listpoint[i][entero])
+	return listaux
 
 def main():
 	listaworkers = []
@@ -32,6 +49,12 @@ def main():
 
 	jsonworkers = {'op':'sendworker','dataset':'','inicial':1,'final':149,'nvariables':0,'distancias':[]}
 
+
+	puntosDistancias = []
+	puntosPendientes = []
+	nInstancias = 1
+	RecolectaPuntos = []
+	diccionarioPuntos = {}
 
 	while True:
 		print("k nvariables")
@@ -56,15 +79,31 @@ def main():
 					msg = json.dumps(mensaje)
 					socket.send_multipart([sender,msg.encode("utf8")])
 				elif  operacion == 'finishwork':
-					fig = plt.figure(figsize=(5, 5))
+					fig = plt.figure(figsize=(150, 20))
 					yi = []
-					for k in range (mensaje_json['inicial'],mensaje_json['final']+1): 
-						yi.append(k) 
-					print(yi)
-					plt.scatter(mensaje_json['distancias'], yi, color='k')
-					plt.title(u'Los kodo')
-					plt.show()
+					if(len(RecolectaPuntos) < nInstancias):
+						for k in range (mensaje_json['inicial'],mensaje_json['final']+1): 
+							yi.append(k) 
+						for point in mensaje_json['distancias']:
+							RecolectaPuntos.append(point)
+						diccionarioPuntos.update(ordenar(yi,RecolectaPuntos))
+					if(mensaje_json['final']==nInstancias):
+						l1 = listpoint(diccionarioPuntos)
 
+						plt.scatter(listXorY(l1,0),listXorY(l1,1),color='k')
+						#linea = lines.Line2D(l1[1],l1[len(l1)-1],transform=fig.transFigure, figure=fig)
+						#fig.lines.extend([linea])
+						plt.plot([l1[1][0],l1[len(l1)-1][0]],[l1[1][1],l1[len(l1)-1][1]],color='b')
+						print(l1[1],l1[len(l1)-1])
+						plt.title(u'Los kodo')
+
+						plt.show()
+	
+								
+					#for k in range (mensaje_json['inicial'],mensaje_json['final']+1): 
+						#yi.append(k) 
+					#print(yi)
+					
 
 					#print(msg)
 				else:
@@ -78,6 +117,7 @@ def main():
 				op, dataset, ndatos, nvariables = command.split(' ', 3)
 				if(op=='k'):
 					msg = json.dumps(jsonworkers)
+					nInstancias = int(ndatos)
 					print(listaworkers[0])
 					for x in range(len(listaworkers)):
 						y = len(listaworkers)
