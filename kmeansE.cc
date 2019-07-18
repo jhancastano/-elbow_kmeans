@@ -242,8 +242,8 @@ DataFrame readData(string File,int nVariables ){
 	 			vector<size_t> a;	
 	 				for(int i=initial.GetInt();i<=final.GetInt();i++){
 	 					cout << i;
-	 					tie(c,a) = kmeansOP(data,i,numeroIT,epsilon,0,means,100);
-	 					//c = k_means(data,i,numeroIT,epsilon,0,means);		
+	 					//tie(c,a) = kmeansOP(data,i,numeroIT,epsilon,0,means,100);
+	 					tie(c,a)= k_means(data,i,numeroIT,epsilon,0,means);		
 	 					dis = distanciakmeans(c,data,a);
 	 					double punto[2]= {(double)i,dis};
 						
